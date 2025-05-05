@@ -74,22 +74,35 @@ app.post("/login", async (req, res) => {
       .status(400)
       .json({ error: true, message: "Password is required" });
   }
-  const userInfo = await User.findOne({ email, password });
-  if (!userInfo) return res.status(401).json({ message: "User not found" });
 
-  if (userInfo.password == password && userInfo.email == email) {
+  try {
+    const userInfo = await User.findOne({ email, password });
+    if (!userInfo) {
+      return res
+        .status(401)
+        .json({ error: true, message: "Invalid credentials" });
+    }
+
     const user = { user: userInfo };
     const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "36000m",
     });
+
     return res.json({
       error: false,
       message: "Login Successful",
-      email,
+      user: {
+        _id: userInfo._id,
+        email: userInfo.email,
+        fullName: userInfo.fullName,
+        createdAt: userInfo.createdAt,
+      },
       accessToken,
     });
-  } else {
-    return res.json({ error: true, message: "Invalid credentials" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: true, message: "Internal server error" });
   }
 });
 
@@ -246,8 +259,30 @@ app.put("/update-note-pinned/:id", authenticateToken, async (req, res) => {
 app.get("/search-note", authenticateToken, async (req, res) => {
   const { user } = req.user;
   const { query } = req.query;
+
+  if (!query) {
+    return res.status(400).json({ error: true, message: "Query is required" });
+  }
+
+  try {
+    const notes = await Note.find({
+      userId: user._id,
+      $or: [
+        { title: { $regex: new RegExp(query, "i") } },
+        { content: { $regex: new RegExp(query, "i") } },
+      ],
+    });
+    return res.json({
+      error: false,
+      notes,
+      message: "Notes retrieved successfully",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: true, message: "Internal server error" });
+  }
 });
 
 app.listen(8000);
-
 module.exports = app;

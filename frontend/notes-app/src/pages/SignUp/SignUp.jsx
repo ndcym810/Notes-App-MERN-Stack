@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import Navbar from "../../components/Navbar/Navbar";
 import { validateEmail, validatePassword } from "../../utils/helper";
 import PasswordInput from "../../components/Input/PasswordInput";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../../utils/axiosInstance";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -10,6 +11,8 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+
+  const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -38,6 +41,29 @@ const SignUp = () => {
     setError("");
 
     // TODO: Implement signup API call
+    try {
+      const response = await axiosInstance.post("/create-account", {
+        fullName: name,
+        email,
+        password,
+      });
+
+      // Handle successful signup response
+      if (response.data && response.data.error) {
+        setError(response.data.message);
+        return;
+      }
+      if (response.data && response.data.user) {
+        localStorage.setItem("accessToken", response.data.accessToken);
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.error) {
+        setError(error.response.data.message);
+      } else {
+        setError("An unexpected error occurred. Please try again later.");
+      }
+    }
   };
 
   return (
